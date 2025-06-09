@@ -1,0 +1,13 @@
+loglv: -4 # debug for slog
+kafka:
+  addr: kafka:9092
+  topics:
+    - try: try
+    - confirm: confirm
+    - cancel: cancel
+pg:
+  addr: postgres
+  pwd: password
+  user: admin
+  db: playwallet
+  port: 5432

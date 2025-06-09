@@ -1,0 +1,73 @@
+volumes:
+  kafka_data:
+  pg_data:
+services:
+  postgres:
+    image: postgres
+    restart: always
+    container_name: postgres
+    ports:
+      - "5432"
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_USER: admin
+      POSTGRES_DB: playwallet
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181"
+    healthcheck:
+      test: nc -z localhost 2181 || exit -1
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  kafka:
+    image: wurstmeister/kafka
+    container_name: kafka
+    ports:
+      - "9092"
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://:9092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CREATE_TOPICS: "try:12:1,confirm:12:1,cancel:12:1"
+    volumes:
+      - kafka_data:/var/run/docker.sock
+    healthcheck:
+      test: nc -z localhost 9092 || exit -1
+      start_period: 10s
+      interval: 5s
+      timeout: 10s
+      retries: 3
+
+  kafka_manager:
+    platform: linux/amd64
+    image: obsidiandynamics/kafdrop
+    container_name: kafka-manager
+    depends_on:
+      - kafka
+    ports:
+      - "8181:9000"
+    environment:
+      - KAFKA_BROKERCONNECT=kafka:9092
+
+  playwallet:
+    image: playwallet-local
+    container_name: playwallet
+    build:
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/app
