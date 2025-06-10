@@ -16,7 +16,7 @@ func ErrorConvMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		if err == nil {
 			return nil
 		}
-		slog.Warn(" [InternalErrConv] Log Err\n", "error", err)
+		slog.Error("[InternalErrConv] Log Err", "error", err)
 		errMsg := err.Error()
 		switch {
 		case errors.Is(err, errs.ErrInvalidParam):
@@ -25,7 +25,7 @@ func ErrorConvMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusBadRequest, errMsg)
 		default:
 			// geenric error, prefer not to expose err msg
-			return echo.NewHTTPError(http.StatusInternalServerError, "internal server error")
+			return echo.NewHTTPError(http.StatusInternalServerError, "internal server error1")
 		}
 	}
 }

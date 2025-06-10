@@ -4,8 +4,8 @@ tmp_dir = "tmp"
 
 [build]
   args_bin = []
-  bin = "tmp/main"
-  cmd = "go mod tidy && go build -o ./tmp/main ./cmd/playwallet"
+  bin = "tmp/playwallet"
+  cmd = "go mod tidy && go build -o ./tmp/playwallet ./cmd/playwallet"
   delay = 2000 # ms
   exclude_dir = ["assets", "tmp", "bin", "vendor", "testdata"]
   exclude_file = []

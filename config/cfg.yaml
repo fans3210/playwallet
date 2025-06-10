@@ -11,3 +11,5 @@ pg:
   user: admin
   db: playwallet
   port: 5432
+http:
+  addr: ":1323"

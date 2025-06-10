@@ -7,13 +7,15 @@ services:
     restart: always
     container_name: postgres
     ports:
-      - "5432"
+      - "5432:5432"
     environment:
       POSTGRES_PASSWORD: password
+      PGPASSWORD: password
       POSTGRES_USER: admin
       POSTGRES_DB: playwallet
     volumes:
       - pg_data:/var/lib/postgresql/data
+      - ./testdata/testdata.sql:/testdata.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready"]
       interval: 1s
@@ -35,7 +37,7 @@ services:
     image: wurstmeister/kafka
     container_name: kafka
     ports:
-      - "9092"
+      - "9092:9092"
     depends_on:
       zookeeper:
         condition: service_healthy
@@ -69,5 +71,7 @@ services:
     container_name: playwallet
     build:
       dockerfile: Dockerfile.dev
+    ports:
+      - "1323:1323"
     volumes:
       - .:/app

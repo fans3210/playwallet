@@ -1,0 +1,15 @@
+loglv: -4 # debug for slog
+kafka:
+  addr: localhost:9092
+  topics:
+    - try: e2e_try
+    - confirm: e2e_confirm
+    - cancel: e2e_cancel
+pg:
+  addr: localhost
+  pwd: password
+  user: admin
+  db: postgres # this is the default db, for testing, would connect to this db first then create tmp db instead, 
+  port: 5432
+http:
+  addr: ":0" # random port

@@ -2,14 +2,13 @@ package cfgs
 
 import (
 	"fmt"
-
-	"playwallet/pkg/mq"
 )
 
 type Config struct {
-	LogLv int         `mapstructure:"loglv"`
-	Kafka mq.KafkaCfg `mapstructure:"kafka"`
-	PG    PGCfg       `mapstructure:"pg"`
+	LogLv int      `mapstructure:"loglv"`
+	Kafka KafkaCfg `mapstructure:"kafka"`
+	PG    PGCfg    `mapstructure:"pg"`
+	Http  HttpCfg  `mapstructure:"http"`
 }
 
 type PGCfg struct {
@@ -23,4 +22,21 @@ type PGCfg struct {
 func (p PGCfg) DSN() string {
 	return fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=Asia/Singapore",
 		p.Addr, p.UserName, p.Pwd, p.DB, p.Port)
+}
+
+type TopicCategory string
+
+var (
+	TopicCategoryTry     TopicCategory = "try"
+	TopicCategoryConfirm TopicCategory = "confirm"
+	TopicCategoryCancel  TopicCategory = "cancel"
+)
+
+type KafkaCfg struct {
+	KafkaAddr string `mapstructure:"addr"`
+	Topics    map[TopicCategory]string
+}
+
+type HttpCfg struct {
+	Addr string `mapstructure:"addr"`
 }

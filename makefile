@@ -4,7 +4,7 @@ lint:
 
 .PHONY: dev
 dev:
-	docker-compose --project-name playwallet -f docker-compose.yaml up -d 
+	docker-compose --project-name playwallet -f docker-compose.yaml up -d --build
 
 .PHONY: down
 down:
@@ -14,3 +14,7 @@ down:
 build:
 	go mod tidy
 	mkdir -p ./bin && go build -o ./bin ./cmd/playwallet 
+
+.PHONY: testdata
+testdata: 
+	docker exec -it postgres psql -h postgres -U admin -d playwallet -f ./testdata.sql

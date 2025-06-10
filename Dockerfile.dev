@@ -12,9 +12,6 @@ COPY . .
 
 WORKDIR /app
 
-# comment if have module replacement, otherwise uncomment
-# RUN go mod download 
-
 ENTRYPOINT ["air"]
 
 
