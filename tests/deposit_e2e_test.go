@@ -84,8 +84,8 @@ func TestCredit(t *testing.T) {
 
 // TODO: test idempotency key
 
-// TODO:  for debit, test idempotency key, test current debit to simulate mallisious user
+// TODO:  for debit, test idempotency key, test concurrent debit to simulate mallisious user who expect to get more cash
 
 // TODO: for transfer, test idempotency key in each step, the try, confirm, cancel step,
-// TODO: for transfer, test concurrent transfer to simulate mallisious user
-// TODO: for transfer, test concurrent transfer for more complicated scenarios, check the correctness of the result balance
+// TODO: for transfer, test concurrent transfer to simulate mallisious user who expect to get more amt from source user
+// TODO: for transfer, test concurrent transfer+deposit+debit, check the correctness of the result balance
