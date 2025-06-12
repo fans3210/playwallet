@@ -1,12 +1,13 @@
+env: prod
 loglv: -4 # debug for slog
 kafka:
-  addr: kafka:9092
+  addr: walletkafka:9092
   topics:
     - try: try
     - confirm: confirm
     - cancel: cancel
 pg:
-  addr: postgres
+  addr: walletpg
   pwd: password
   user: admin
   db: playwallet

@@ -2,7 +2,6 @@ package errs
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 )
 
@@ -12,27 +11,8 @@ var (
 	ErrNotFound            = errors.New("not found")
 	ErrNotAllowed          = errors.New("not allowed")
 	ErrInsufficientBalance = errors.New("insufficient balance")
+	ErrDuplicate           = errors.New("record already exist")
 )
-
-type DBError struct {
-	Reason string
-}
-
-func (err DBError) Error() string {
-	return fmt.Sprintf("dberr: %s", err.Reason)
-}
-
-// WARN: just used to join err msgs, original err won't be wrapped
-func DBErrorWithErr(err error, reasons ...string) error {
-	var reason string
-	if len(reasons) > 0 {
-		reason = strings.Join(reasons, ",")
-	}
-	if err != nil {
-		return DBError{fmt.Sprintf("%s,%v", reason, err)}
-	}
-	return DBError{reason}
-}
 
 type ValidationError struct {
 	Reasons []string

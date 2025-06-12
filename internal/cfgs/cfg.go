@@ -5,6 +5,7 @@ import (
 )
 
 type Config struct {
+	Env   string   `mapstructure:"env"`
 	LogLv int      `mapstructure:"loglv"`
 	Kafka KafkaCfg `mapstructure:"kafka"`
 	PG    PGCfg    `mapstructure:"pg"`

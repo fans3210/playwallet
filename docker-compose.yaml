@@ -2,12 +2,13 @@ volumes:
   kafka_data:
   pg_data:
 services:
+
   postgres:
     image: postgres
     restart: always
-    container_name: postgres
+    container_name: walletpg
     ports:
-      - "5432:5432"
+      - "5432"
     environment:
       POSTGRES_PASSWORD: password
       PGPASSWORD: password
@@ -21,9 +22,10 @@ services:
       interval: 1s
       timeout: 5s
       retries: 10
+
   zookeeper:
     image: wurstmeister/zookeeper
-    container_name: zookeeper
+    container_name: walletzookeeper
     ports:
       - "2181"
     healthcheck:
@@ -35,9 +37,9 @@ services:
 
   kafka:
     image: wurstmeister/kafka
-    container_name: kafka
+    container_name: walletkafka
     ports:
-      - "9092:9092"
+      - "9092"
     depends_on:
       zookeeper:
         condition: service_healthy
@@ -58,7 +60,7 @@ services:
   kafka_manager:
     platform: linux/amd64
     image: obsidiandynamics/kafdrop
-    container_name: kafka-manager
+    container_name: walletkmgr
     depends_on:
       - kafka
     ports:
@@ -67,11 +69,9 @@ services:
       - KAFKA_BROKERCONNECT=kafka:9092
 
   playwallet:
-    image: playwallet-local
+    image: github.com/fans3210/playwallet
     container_name: playwallet
     build:
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     ports:
       - "1323:1323"
-    volumes:
-      - .:/app

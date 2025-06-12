@@ -1,10 +1,12 @@
 package data
 
 import (
-	"log/slog"
+	"errors"
+	"time"
 
 	"playwallet/internal/cfgs"
 	"playwallet/internal/domain"
+	"playwallet/pkg/errs"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -18,6 +20,7 @@ type WalletRepo struct {
 func NewWalletRepo(cfg cfgs.PGCfg) (*WalletRepo, error) {
 	db, err := gorm.Open(postgres.Open(cfg.DSN()), &gorm.Config{
 		// Logger: logger.Default.LogMode(logger.Silent),
+		TranslateError: true,
 	})
 	if err != nil {
 		return nil, err
@@ -34,22 +37,52 @@ func NewWalletRepo(cfg cfgs.PGCfg) (*WalletRepo, error) {
 	return ret, nil
 }
 
-func (r *WalletRepo) CheckBalance(userID int64) (int64, error) {
+func (r *WalletRepo) CheckUserExist(userID int64) bool {
+	return r.db.First(&domain.User{ID: userID}).RowsAffected > 0
+}
+
+// TODO: instead of scanning all transactions, add a milestone or snapshot table to save the balance before certain date for performance optimisations
+func (r *WalletRepo) CheckBalance(userID int64) (*domain.BalanceBaseInfo, error) {
 	sql := `
-	SELECT 
-	  SUM(t.amt) AS total_balance,
-	  SUM(f.amt) AS frozen_balance
-	FROM users u
-	LEFT JOIN transactions t ON t.userid = u.id
-	LEFT JOIN frozen_balances f ON f.userid = u.id AND f.status = ?
-	WHERE u.id = ?
-	GROUP BY u.id;
+		SELECT 
+		  a.id,
+		  COALESCE(t.total_balance, 0) AS total_balance,
+		  COALESCE(f.frozen_balance, 0) AS frozen_balance
+		FROM users a
+		LEFT JOIN (
+			SELECT userid, SUM(CASE WHEN isdebit THEN -amt ELSE amt END) AS total_balance
+			FROM transactions
+			GROUP BY userid
+		) t ON t.userid = a.id
+		LEFT JOIN (
+			SELECT userid, SUM(amt) AS frozen_balance
+			FROM frozen_balances
+			WHERE status = ?
+			GROUP BY userid
+		) f ON f.userid = a.id
+		WHERE a.id = ?;
 	`
-	var balanceInfo domain.BalanceInfo
+	var balanceInfo domain.BalanceBaseInfo
 	if err := r.db.Raw(sql, domain.FrozenStatusFrozen, userID).Scan(&balanceInfo).Error; err != nil {
-		return 0, err
+		return nil, err
 	}
-	slog.Debug("balance is", "balance", balanceInfo)
-	balance := max(balanceInfo.TotalBalance-balanceInfo.FrozenBalance, 0)
-	return balance, nil
+	return &balanceInfo, nil
+}
+
+func (r *WalletRepo) Deposit(req domain.DepositReq) error {
+	now := time.Now()
+	trans := domain.Transaction{
+		IdempotencyKey: req.IdempotencyKey,
+		UserID:         req.UserID,
+		Amount:         req.Amt,
+		IsDebit:        false,
+		At:             now,
+	}
+	if err := r.db.Create(&trans).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return errs.ErrDuplicate
+		}
+		return err
+	}
+	return nil
 }

@@ -1,3 +1,5 @@
+# for e2e test usage
+env: test
 loglv: -4 # debug for slog
 kafka:
   addr: localhost:9092

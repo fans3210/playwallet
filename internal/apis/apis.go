@@ -2,16 +2,12 @@ package apis
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net"
-	"net/http"
-	"strconv"
 
 	"playwallet/internal/biz"
 	"playwallet/internal/cfgs"
 	"playwallet/internal/data"
-	"playwallet/pkg/errs"
 	"playwallet/pkg/middlewares"
 
 	"github.com/labstack/echo/v4"
@@ -42,6 +38,7 @@ func NewApp(cfg cfgs.Config) (*App, error) {
 
 	// routes & middleware
 	s.svr = echo.New()
+	s.svr.HideBanner = cfg.Env == "test"
 	// middlewares & routes
 	s.svr.Use(middlewares.ErrorConvMiddleware)
 	s.registerRoutes()
@@ -79,17 +76,6 @@ func (s *App) ShunDown() error {
 func (s *App) registerRoutes() {
 	slog.Debug("registering routes...")
 
-	s.svr.GET("/balance/:userid", func(c echo.Context) error {
-		uidstr := c.Param("userid")
-		userID, err := strconv.ParseInt(uidstr, 10, 64)
-		if err != nil {
-			return errs.ErrInvalidPlayer
-		}
-		balance, err := s.uc.CheckBalance(userID)
-		if err != nil {
-			return fmt.Errorf("failed to check balance for user: %d, %w", userID, err)
-		}
-		slog.Debug("user balance", "balance", balance)
-		return c.String(http.StatusOK, "hi there")
-	})
+	s.svr.GET("/balance/:userid", s.getBalacne)
+	s.svr.POST("/deposit", s.deposit)
 }
