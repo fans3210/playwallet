@@ -19,7 +19,10 @@ func ErrorConvMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		slog.Error("[InternalErrConv] Log Err", "error", err)
 		errMsg := err.Error()
 		var validationErr errs.ValidationError
+		httpErr := new(echo.HTTPError)
 		switch {
+		case errors.As(err, &httpErr):
+			return httpErr
 		case errors.Is(err, errs.ErrInvalidParam),
 			errors.Is(err, errs.ErrInvalidPlayer),
 			errors.As(err, &validationErr):

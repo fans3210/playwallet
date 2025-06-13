@@ -22,9 +22,9 @@ func (err ValidationError) Error() string {
 	if len(err.Reasons) <= 0 {
 		return ""
 	}
-	return strings.Join(err.Reasons, ",")
+	return strings.Join(err.Reasons, " | ")
 }
 
-func ValidationErrWithReason(reason string) error {
-	return ValidationError{Reasons: []string{reason}}
+func ValidationErrWithReason(reasons ...string) error {
+	return ValidationError{Reasons: reasons}
 }

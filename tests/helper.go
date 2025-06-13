@@ -131,17 +131,17 @@ func createTestAccts(db *gorm.DB) error {
 type actionType string
 
 const (
-	actionTypeDeposit  actionType = "deposit"
-	actionTypeWithdraw actionType = "withdraw"
-	actionTypeTransfer actionType = "transfer"
-	actionTypeFreeze   actionType = "freeze"
+	deposit  actionType = "deposit"
+	withdraw actionType = "withdraw"
+	transfer actionType = "transfer"
+	freeze   actionType = "freeze"
 )
 
 type action struct {
-	userID  int64
-	otherID int64 // optional
-	actType actionType
-	amt     uint64
+	userID   int64
+	targetID int64 // optional
+	actType  actionType
+	amt      uint64
 }
 
 // just use to mock data, no validation checking
@@ -155,27 +155,27 @@ func addTestData(t *testing.T, db *gorm.DB, acts ...action) error {
 			continue
 		}
 		switch act.actType {
-		case actionTypeDeposit, actionTypeWithdraw:
+		case deposit, withdraw:
 			trans = append(trans, domain.Transaction{
 				IdempotencyKey: fmt.Sprintf("%d:uid:%d:%s", i, act.userID, act.actType),
 				UserID:         act.userID,
 				Amount:         int64(act.amt),
-				IsDebit:        act.actType == actionTypeWithdraw,
+				IsDebit:        act.actType == withdraw,
 				At:             now,
 			})
-		case actionTypeFreeze, actionTypeTransfer:
-			if act.otherID <= 0 {
+		case freeze, transfer:
+			if act.targetID <= 0 {
 				continue
 			}
 			fb := domain.FrozenBalance{
-				IdempotencyKey: fmt.Sprintf("%d:from:%d:to:%d:%s", i, act.userID, act.otherID, act.actType),
+				IdempotencyKey: fmt.Sprintf("%d:from:%d:to:%d:%s", i, act.userID, act.targetID, act.actType),
 				UserID:         act.userID,
-				OtherID:        act.otherID,
+				TargetID:       act.targetID,
 				Amount:         int64(act.amt),
 				Status:         domain.FrozenStatusFrozen,
 				At:             now,
 			}
-			if act.actType == actionTypeTransfer {
+			if act.actType == transfer {
 				trans = append(trans, domain.FrozenBalancesToTransactions(now, fb)...)
 				fb.Status = domain.FrozenStatusConfirmed // after creating transactions, mark the frozen balance record as `confirmed`
 			}
@@ -219,12 +219,12 @@ func makeCheckBalanceReq(endpoint string, uid int64) (int, *domain.BalanceInfo, 
 	return res.StatusCode, &bInfo, nil
 }
 
-func makeDepositReq(endpoint string, req domain.DepositReq) (int, error) {
+func makeTransactionReq(endpoint string, req domain.TransactionReq) (int, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return 0, err
 	}
-	res, err := http.Post(fmt.Sprintf("%s/deposit", endpoint), "application/json", bytes.NewBuffer(body))
+	res, err := http.Post(fmt.Sprintf("%s/transaction", endpoint), "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		return 0, err
 	}
@@ -241,7 +241,7 @@ func makeDepositReq(endpoint string, req domain.DepositReq) (int, error) {
 		return res.StatusCode, err
 	}
 	if mRes["message"] != "succeed" {
-		return res.StatusCode, fmt.Errorf("unexpected response: %+v\n", mRes)
+		return res.StatusCode, fmt.Errorf("unexpected response: %+v", mRes)
 	}
 	return res.StatusCode, nil
 }

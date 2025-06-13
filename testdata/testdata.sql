@@ -6,14 +6,14 @@ insert into users (id, username) values
 (2, 'bob');
 
 delete from frozen_balances;
-insert into frozen_balances (idempotencykey, userid, otherid, amt, status, at) values
+insert into frozen_balances (idempotencykey, userid, targetid, amt, status, at) values
 ('1to2frozen', 1, 2, 10, 1,  now()),
 ('1to2confirmed', 1, 2, 20, 2,  now()), -- 1 transfer to 2 20 cents confirmed
 ('2to1fronzen', 2, 1, 15, 1,  now()),
 ('2to1confirmed', 2, 1, 25, 2,  now()); -- 2 transfer to 1 25 cents confirmed
 
 delete from transactions;
-insert into transactions (idempotencykey, userid, otherid, amt, isdebit, at) values
+insert into transactions (idempotencykey, userid, targetid, amt, isdebit, at) values
 ('1to2confirmed', 1, 2, 20, true, now()),
 ('1to2confirmed', 2, 1, 20, false, now()),
 ('2to1confirmed', 2, 1, 25, true, now()),

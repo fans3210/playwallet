@@ -77,5 +77,5 @@ func (s *App) registerRoutes() {
 	slog.Debug("registering routes...")
 
 	s.svr.GET("/balance/:userid", s.getBalacne)
-	s.svr.POST("/deposit", s.deposit)
+	s.svr.POST("/transaction", s.makeTransaction)
 }
