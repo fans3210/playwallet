@@ -37,7 +37,7 @@ func (t TransactionReq) Validate() error {
 		errMsgs = append(errMsgs, "invalid userid")
 	}
 	if t.Amt <= 0 {
-		errMsgs = append(errMsgs, "invalid amount val")
+		errMsgs = append(errMsgs, "amount val <= 0")
 	}
 	if !t.Type.IsValid() {
 		errMsgs = append(errMsgs, fmt.Sprintf("transaction type: %s not supported", t.Type))
@@ -60,7 +60,7 @@ type Transaction struct {
 	IdempotencyKey string    `gorm:"column:idempotencykey;primaryKey;check:idempotencykey<>''"` // WARN: transction id is not unique, transctionid+userid is unique, refers to IdempotencyKey of FrozenBalance for `transfer` case,
 	UserID         int64     `gorm:"column:userid;primaryKey;check:userid>0;index"`
 	TargetID       *int64    `gorm:"column:targetid;check:targetid is null or targetid > 0"` // if not speicying targetid, the transaction would be credit or debit , otherwise, is a transfer
-	Amount         int64     `gorm:"column:amt;not null;check:amt>0"`                        // in cents
+	Amount         int64     `gorm:"column:amt;not null;check:amt>0"`
 	IsDebit        bool      `gorm:"column:isdebit;not null"`
 	At             time.Time `gorm:"column:at;not null"`
 }

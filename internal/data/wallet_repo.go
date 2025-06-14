@@ -2,7 +2,6 @@ package data
 
 import (
 	"errors"
-	"log/slog"
 	"time"
 
 	"playwallet/internal/cfgs"
@@ -62,6 +61,7 @@ func (r *WalletRepo) CheckBalance(userID int64) (*domain.BalanceBaseInfo, error)
 			WHERE userid = @uid and status = @status
 			GROUP BY userid
 		) f ON f.userid = a.id
+		;
 	`
 	var balanceInfo domain.BalanceBaseInfo
 	if err := r.db.Raw(sql, map[string]any{"uid": userID, "status": domain.FrozenStatusFrozen}).Scan(&balanceInfo).Error; err != nil {
@@ -80,17 +80,26 @@ func (r *WalletRepo) Deposit(req domain.TransactionReq) error {
 		IsDebit:        false,
 		At:             now,
 	}
-	if err := r.db.Create(&trans).Error; err != nil {
+	t := r.db.Create(&trans)
+	if err := t.Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return errs.ErrDuplicate
 		}
 		return err
 	}
+	if t.RowsAffected < 1 {
+		return errs.ErrNotAllowed
+	}
 	return nil
 }
 
 func (r *WalletRepo) Withdraw(req domain.TransactionReq) error {
-	sql := `
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// lock the users row to prevent from race considtion when checking balance
+		if err := tx.Exec("select id from users where id = ? for update", req.UserID).Error; err != nil {
+			return err
+		}
+		sql := `
 		WITH available AS (
 		  SELECT 
 			a.id AS userid,
@@ -110,20 +119,28 @@ func (r *WalletRepo) Withdraw(req domain.TransactionReq) error {
 		  ) f ON f.userid = a.id
 		)
 
-		INSERT INTO transactions (id, userid, targetid, amt, isdebit, at)
+		INSERT INTO transactions (idempotencykey, userid, targetid, amt, isdebit, at)
 		SELECT @idpkey, a.userid, @targetid, @amt, true, NOW()
 		FROM available a
-		WHERE a.available_balance - @amt >= 0 and @amt > 0;
+		WHERE a.available_balance - @amt >= 0 and @amt > 0
+		;
 	`
-	res := map[string]any{}
-	if err := r.db.Debug().Raw(sql, map[string]any{
-		"uid":      req.UserID,
-		"targetid": req.TargetID, // properly handle nil and non-nil case for deposit and transfer
-		"status":   domain.FrozenStatusFrozen,
-		"amt":      req.Amt,
-	}).Scan(&res).Error; err != nil {
-		return err
-	}
-	slog.Debug("withdraw res = ", "res", res)
-	panic("hi")
+		t := tx.Exec(sql, map[string]any{
+			"idpkey":   req.IdempotencyKey,
+			"uid":      req.UserID,
+			"targetid": req.TargetID, // properly handle nil and non-nil case for deposit and transfer
+			"status":   domain.FrozenStatusFrozen,
+			"amt":      req.Amt,
+		})
+		if err := t.Error; err != nil {
+			if errors.Is(err, gorm.ErrDuplicatedKey) {
+				return errs.ErrDuplicate
+			}
+			return err
+		}
+		if t.RowsAffected < 1 {
+			return errs.ErrInsufficientBalance
+		}
+		return nil
+	})
 }

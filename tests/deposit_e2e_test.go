@@ -72,8 +72,6 @@ func TestDeposit(t *testing.T) {
 	}
 }
 
-// TODO: test idempotency key
-
 // TODO:  for debit, test idempotency key, test concurrent debit to simulate mallisious user who expect to get more cash
 
 // TODO: for transfer, test idempotency key in each step, the try, confirm, cancel step,

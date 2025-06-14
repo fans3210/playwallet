@@ -20,6 +20,5 @@ func (uc *WalletUC) CheckBalance(userID int64) (*domain.BalanceInfo, error) {
 		BalanceBaseInfo:  *baseInfo,
 		UserID:           userID,
 		AvailableBalance: availableBalance,
-		Unit:             "cents",
 	}, nil
 }

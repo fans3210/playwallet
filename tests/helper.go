@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"os"
 	"testing"
 	"time"
 
@@ -26,9 +25,7 @@ var errNon200Status = fmt.Errorf("unsuccessful status code")
 
 func provisionTestApp(t *testing.T) (string, *gorm.DB, func(t *testing.T)) {
 	// setup global logger
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelWarn,
-	}))
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	slog.SetDefault(logger)
 	// read config
 	viper.SetConfigName("cfg_test")
@@ -146,7 +143,7 @@ type action struct {
 
 // just use to mock data, no validation checking
 // assume there are already two users with id 1 and 2 for testing
-func addTestData(t *testing.T, db *gorm.DB, acts ...action) error {
+func addTestData(t *testing.T, db *gorm.DB, acts ...action) {
 	trans := make([]domain.Transaction, 0, len(acts)*2)
 	fbs := make([]domain.FrozenBalance, 0, len(acts))
 	now := time.Now()
@@ -184,19 +181,18 @@ func addTestData(t *testing.T, db *gorm.DB, acts ...action) error {
 	}
 	if len(fbs) > 0 {
 		if err := db.Create(fbs).Error; err != nil {
-			return fmt.Errorf("failed to create test frozen balance data, err: %w", err)
+			t.Fatal(fmt.Errorf("failed to create test frozen balance data, err: %w", err))
 		}
 	}
 	b, _ := json.Marshal(fbs)
 	t.Logf("fbs data: %s\n", b)
 	if len(trans) > 0 {
 		if err := db.Create(trans).Error; err != nil {
-			return fmt.Errorf("failed to create test transactions data, err: %w", err)
+			t.Fatal(fmt.Errorf("failed to create test transactions data, err: %w", err))
 		}
 	}
 	b, _ = json.Marshal(trans)
 	t.Logf("trans data: %s\n", b)
-	return nil
 }
 
 func makeCheckBalanceReq(endpoint string, uid int64) (int, *domain.BalanceInfo, error) {

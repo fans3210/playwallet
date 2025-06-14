@@ -29,9 +29,7 @@ func ErrorConvMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusBadRequest, errMsg)
 		case errors.Is(err, errs.ErrNotFound):
 			return echo.NewHTTPError(http.StatusNotFound, errMsg)
-		case errors.Is(err, errs.ErrNotAllowed):
-			return echo.NewHTTPError(http.StatusForbidden, errMsg)
-		case errors.Is(err, errs.ErrInsufficientBalance):
+		case errors.Is(err, errs.ErrNotAllowed), errors.Is(err, errs.ErrInsufficientBalance):
 			return echo.NewHTTPError(http.StatusForbidden, errMsg)
 		case errors.Is(err, errs.ErrDuplicate):
 			return echo.NewHTTPError(http.StatusConflict, errMsg)

@@ -73,9 +73,7 @@ func TestCheckBalance(t *testing.T) {
 		t.Run(c.desc, func(t *testing.T) {
 			endpoint, db, teardown := provisionTestApp(t)
 			defer teardown(t)
-			if err := addTestData(t, db, c.actions...); err != nil {
-				t.Fatal(err)
-			}
+			addTestData(t, db, c.actions...)
 			uids := []int64{1, 2}
 			for i, uid := range uids {
 				_, bInfo, err := makeCheckBalanceReq(endpoint, uid)

@@ -2,14 +2,15 @@ package tests
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"sync"
 	"testing"
 
 	"playwallet/internal/domain"
 )
 
 func TestWithdraw(t *testing.T) {
-	t.SkipNow()
 	endpoint, db, teardown := provisionTestApp(t)
 	defer teardown(t)
 	// prepare data
@@ -18,7 +19,7 @@ func TestWithdraw(t *testing.T) {
 	idpKey1, idpKey2 := "transfer1", "transfer2"
 	amt1, amt2 := int64(10), int64(20)
 
-	if err := addTestData(t, db,
+	addTestData(t, db,
 		action{
 			userID:  uid1,
 			actType: deposit,
@@ -29,9 +30,7 @@ func TestWithdraw(t *testing.T) {
 			actType: deposit,
 			amt:     startAmt,
 		},
-	); err != nil {
-		t.Fatal(err)
-	}
+	)
 
 	// withdraw amt that exceed the available amt
 	req := domain.TransactionReq{
@@ -42,7 +41,7 @@ func TestWithdraw(t *testing.T) {
 	}
 	status, err := makeTransactionReq(endpoint, req)
 	if err == nil {
-		t.Fatal("expect error if withdraw amt > available balance")
+		t.Fatal("expect error if withdraw amt exceed available balance")
 	}
 	if status != http.StatusForbidden {
 		t.Fatalf("unexpected status code, expect 403 forbidden, actual: %d\n", status)
@@ -109,5 +108,76 @@ func TestWithdraw(t *testing.T) {
 	}
 	if balanceInfo.AvailableBalance != int64(startAmt)-amt1-amt2 {
 		t.Fatalf("incorrect available balance amt after withdraw, expect: %d, actual: %d\n", int64(startAmt)-amt1-amt2, balanceInfo.AvailableBalance)
+	}
+}
+
+// simulate a mallicious user who want to do concurrnet withdraw and expect to get more than available balance if wisdraws request if not atomic
+func TestConcurrentWithdraw(t *testing.T) {
+	endpoint, db, teardown := provisionTestApp(t)
+	defer teardown(t)
+	// prepare data
+	uid := int64(1)
+	startAmt := int64(100)
+	withDrawAmt := int64(15)
+	addTestData(t, db,
+		action{
+			userID:  uid,
+			actType: deposit,
+			amt:     uint64(startAmt),
+		},
+	)
+	N := 20
+	wg := sync.WaitGroup{}
+	resCh := make(chan int)
+	// concurrent request, withdraw 15 from 100,  should have 6 success out of N, available balnace should be 10 after requests
+	for i := 1; i <= N; i++ {
+		// withdraw amt that exceed the available amt
+		idpKey := fmt.Sprintf("withdrawidpkey%d", i)
+		req := domain.TransactionReq{
+			UserID:         uid,
+			Amt:            withDrawAmt,
+			IdempotencyKey: idpKey,
+			Type:           domain.Withdraw,
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			status, _ := makeTransactionReq(endpoint, req)
+			t.Logf("i: %d, status: %d\n", i, status)
+			resCh <- status
+			_, balanceInfo, err := makeCheckBalanceReq(endpoint, uid)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			t.Logf("i: %d, balance:%+v\n", i, balanceInfo)
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(resCh)
+	}()
+
+	var noSuccess, noForbidden int
+	for status := range resCh {
+		if status == http.StatusOK {
+			noSuccess++
+		}
+		if status == http.StatusForbidden {
+			noForbidden++
+		}
+	}
+	if noSuccess != int(startAmt/withDrawAmt) {
+		t.Fatalf("unexpected no of success cnt: expect: %d, actual: %d\n", startAmt/withDrawAmt, noSuccess)
+	}
+	if noForbidden != N-noSuccess {
+		t.Fatalf("unexpected no of forbidden cnt: expect: %d, actual: %d\n", N-noSuccess, noForbidden)
+	}
+	_, balanceInfo, err := makeCheckBalanceReq(endpoint, uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if balanceInfo.AvailableBalance != startAmt%withDrawAmt {
+		t.Fatalf("incorrect available balance amt after withdraw, expect: %d, actual: %d\n", startAmt%withDrawAmt, balanceInfo.AvailableBalance)
 	}
 }

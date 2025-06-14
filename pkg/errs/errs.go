@@ -11,7 +11,7 @@ var (
 	ErrNotFound            = errors.New("not found")
 	ErrNotAllowed          = errors.New("not allowed")
 	ErrInsufficientBalance = errors.New("insufficient balance")
-	ErrDuplicate           = errors.New("record already exist")
+	ErrDuplicate           = errors.New("record with same idempotency key already exist")
 )
 
 type ValidationError struct {

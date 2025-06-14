@@ -2,9 +2,8 @@ package domain
 
 type BalanceInfo struct {
 	BalanceBaseInfo
-	UserID           int64  `json:"uid"`
-	AvailableBalance int64  `json:"available_balance"`
-	Unit             string `json:"unit"`
+	UserID           int64 `json:"uid"`
+	AvailableBalance int64 `json:"available_balance"`
 }
 
 type BalanceBaseInfo struct {
