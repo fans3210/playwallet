@@ -2,6 +2,7 @@ package data
 
 import (
 	"errors"
+	"log/slog"
 	"time"
 
 	"playwallet/internal/cfgs"
@@ -37,8 +38,15 @@ func NewWalletRepo(cfg cfgs.PGCfg) (*WalletRepo, error) {
 	return ret, nil
 }
 
-func (r *WalletRepo) CheckUserExist(userID int64) bool {
-	return r.db.First(&domain.User{ID: userID}).RowsAffected > 0
+func (r *WalletRepo) CheckUserExist(userID int64) (bool, error) {
+	tx := r.db.First(&domain.User{ID: userID})
+	if err := tx.Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return tx.RowsAffected > 0, nil
 }
 
 // TODO: instead of scanning all transactions, add a milestone or snapshot table to save the balance before certain date for performance optimisations
@@ -75,10 +83,10 @@ func (r *WalletRepo) Deposit(req domain.TransactionReq) error {
 	trans := domain.Transaction{
 		IdempotencyKey: req.IdempotencyKey,
 		UserID:         req.UserID,
-		TargetID:       req.TargetID, // properly handle nil and non-nil case for deposit and transfer
+		OtherID:        req.TargetID, // properly handle nil and non-nil case for deposit and transfer
 		Amount:         req.Amt,
 		IsDebit:        false,
-		At:             now,
+		CreateAt:       now,
 	}
 	t := r.db.Create(&trans)
 	if err := t.Error; err != nil {
@@ -99,6 +107,23 @@ func (r *WalletRepo) Withdraw(req domain.TransactionReq) error {
 		if err := tx.Exec("select id from users where id = ? for update", req.UserID).Error; err != nil {
 			return err
 		}
+
+		// for `confirm` phase of transfer, before creating a new transaction record, should update status to confirmed
+		if req.Type == domain.Transfer {
+			now := time.Now()
+			fb := &domain.FrozenBalance{
+				IdempotencyKey: req.IdempotencyKey,
+			}
+			if err := tx.Model(&fb).
+				Where("status", domain.FrozenStatusFrozen).
+				Updates(map[string]any{
+					"status":    domain.FrozenStatusConfirmed,
+					"update_at": now,
+				}).Error; err != nil {
+				return err
+			}
+		}
+
 		sql := `
 		WITH available AS (
 		  SELECT 
@@ -119,18 +144,18 @@ func (r *WalletRepo) Withdraw(req domain.TransactionReq) error {
 		  ) f ON f.userid = a.id
 		)
 
-		INSERT INTO transactions (idempotencykey, userid, targetid, amt, isdebit, at)
-		SELECT @idpkey, a.userid, @targetid, @amt, true, NOW()
+		INSERT INTO transactions (idempotencykey, userid, otherid, amt, isdebit, at)
+		SELECT @idpkey, a.userid, @otherid, @amt, true, NOW()
 		FROM available a
 		WHERE a.available_balance - @amt >= 0 and @amt > 0
 		;
 	`
 		t := tx.Exec(sql, map[string]any{
-			"idpkey":   req.IdempotencyKey,
-			"uid":      req.UserID,
-			"targetid": req.TargetID, // properly handle nil and non-nil case for deposit and transfer
-			"status":   domain.FrozenStatusFrozen,
-			"amt":      req.Amt,
+			"idpkey":  req.IdempotencyKey,
+			"uid":     req.UserID,
+			"otherid": req.TargetID, // properly handle nil and non-nil case for deposit and transfer
+			"status":  domain.FrozenStatusFrozen,
+			"amt":     req.Amt,
 		})
 		if err := t.Error; err != nil {
 			if errors.Is(err, gorm.ErrDuplicatedKey) {
@@ -143,4 +168,43 @@ func (r *WalletRepo) Withdraw(req domain.TransactionReq) error {
 		}
 		return nil
 	})
+}
+
+func (r *WalletRepo) CreateFrozenBalance(req domain.TransactionReq) error {
+	rc := domain.FrozenBalance{
+		IdempotencyKey: req.IdempotencyKey,
+		UserID:         req.UserID,
+		TargetID:       *req.TargetID,
+		Amount:         req.Amt,
+		Status:         domain.FrozenStatusFrozen,
+		CreateAt:       time.Now(),
+	}
+	t := r.db.Create(&rc)
+	if err := t.Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return errs.ErrDuplicate
+		}
+		return err
+	}
+	if t.RowsAffected < 1 {
+		return errs.ErrNotAllowed
+	}
+	return nil
+}
+
+func (r *WalletRepo) CancelFrozenBalance(req domain.TransactionReq) error {
+	fb := &domain.FrozenBalance{
+		IdempotencyKey: req.IdempotencyKey,
+	}
+	now := time.Now()
+	if err := r.db.Model(&fb).
+		Where("status", domain.FrozenStatusFrozen).
+		Updates(map[string]any{
+			"status":    domain.FrozenStatusCancelled,
+			"update_at": now,
+		}).Error; err != nil {
+		slog.Error("failed to cancel", "req", req, "err", err)
+		return err
+	}
+	return nil
 }

@@ -8,8 +8,12 @@ import (
 )
 
 func (uc *WalletUC) CheckBalance(userID int64) (*domain.BalanceInfo, error) {
-	if !uc.repo.CheckUserExist(userID) {
-		return nil, fmt.Errorf("user not exist, %w", errs.ErrNotFound)
+	exists, err := uc.repo.CheckUserExist(userID)
+	if err != nil {
+		return nil, fmt.Errorf("check balance, check user %d exist err, %w", userID, err)
+	}
+	if !exists {
+		return nil, fmt.Errorf("check balance, user %d not exist, %w", userID, errs.ErrNotFound)
 	}
 	baseInfo, err := uc.repo.CheckBalance(userID)
 	if err != nil {

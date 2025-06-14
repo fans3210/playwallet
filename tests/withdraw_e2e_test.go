@@ -95,7 +95,7 @@ func TestWithdraw(t *testing.T) {
 	// withdraw again and check balance
 	req2 := domain.TransactionReq{
 		UserID:         uid1,
-		Amt:            int64(amt2),
+		Amt:            amt2,
 		IdempotencyKey: idpKey2,
 		Type:           domain.Withdraw,
 	}
@@ -126,9 +126,10 @@ func TestConcurrentWithdraw(t *testing.T) {
 			amt:     uint64(startAmt),
 		},
 	)
-	N := 20
+	N := 1000
 	wg := sync.WaitGroup{}
 	resCh := make(chan int)
+	sema := make(chan struct{}, 50) // WARN: by default postgres allow max 100 client conns at the same time, need to limit to be less than 100
 	// concurrent request, withdraw 15 from 100,  should have 6 success out of N, available balnace should be 10 after requests
 	for i := 1; i <= N; i++ {
 		// withdraw amt that exceed the available amt
@@ -141,18 +142,18 @@ func TestConcurrentWithdraw(t *testing.T) {
 		}
 		wg.Add(1)
 		go func() {
-			defer wg.Done()
+			sema <- struct{}{}
+
+			defer func() {
+				wg.Done()
+				<-sema
+			}()
+
 			status, _ := makeTransactionReq(endpoint, req)
-			t.Logf("i: %d, status: %d\n", i, status)
 			resCh <- status
-			_, balanceInfo, err := makeCheckBalanceReq(endpoint, uid)
-			if err != nil {
-				t.Error(err)
-				return
-			}
-			t.Logf("i: %d, balance:%+v\n", i, balanceInfo)
 		}()
 	}
+
 	go func() {
 		wg.Wait()
 		close(resCh)
@@ -162,9 +163,10 @@ func TestConcurrentWithdraw(t *testing.T) {
 	for status := range resCh {
 		if status == http.StatusOK {
 			noSuccess++
-		}
-		if status == http.StatusForbidden {
+		} else if status == http.StatusForbidden {
 			noForbidden++
+		} else {
+			t.Logf("unexpected status: %d\n", status)
 		}
 	}
 	if noSuccess != int(startAmt/withDrawAmt) {
@@ -176,6 +178,9 @@ func TestConcurrentWithdraw(t *testing.T) {
 	_, balanceInfo, err := makeCheckBalanceReq(endpoint, uid)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !balanceInfo.IsValid() {
+		t.Fatalf("invalid balance info: %+v\n", balanceInfo)
 	}
 	if balanceInfo.AvailableBalance != startAmt%withDrawAmt {
 		t.Fatalf("incorrect available balance amt after withdraw, expect: %d, actual: %d\n", startAmt%withDrawAmt, balanceInfo.AvailableBalance)

@@ -25,17 +25,17 @@ func (p PGCfg) DSN() string {
 		p.Addr, p.UserName, p.Pwd, p.DB, p.Port)
 }
 
-type TopicCategory string
+type TopicKey string
 
 var (
-	TopicCategoryTry     TopicCategory = "try"
-	TopicCategoryConfirm TopicCategory = "confirm"
-	TopicCategoryCancel  TopicCategory = "cancel"
+	TpcKeySenderConfirm   TopicKey = "senderconfirm"
+	TpcKeyReceiverConfirm TopicKey = "receiverconfirm"
+	TpcKeyCancel          TopicKey = "cancel"
 )
 
 type KafkaCfg struct {
 	KafkaAddr string `mapstructure:"addr"`
-	Topics    map[TopicCategory]string
+	Topics    map[TopicKey]string
 }
 
 type HttpCfg struct {

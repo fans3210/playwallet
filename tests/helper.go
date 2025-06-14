@@ -2,6 +2,7 @@ package tests
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	"playwallet/internal/cfgs"
 	"playwallet/internal/domain"
 
+	"github.com/segmentio/kafka-go"
 	"github.com/spf13/viper"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -25,7 +28,8 @@ var errNon200Status = fmt.Errorf("unsuccessful status code")
 
 func provisionTestApp(t *testing.T) (string, *gorm.DB, func(t *testing.T)) {
 	// setup global logger
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	// logger := slog.New(slog.NewTextHandler(io.Discard, nil)) // FIXME:
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	slog.SetDefault(logger)
 	// read config
 	viper.SetConfigName("cfg_test")
@@ -75,6 +79,9 @@ func provisionTestApp(t *testing.T) (string, *gorm.DB, func(t *testing.T)) {
 	app, err := apis.NewApp(tmpCfg)
 	if err != nil {
 		t.Fatalf("failed to create app: %s\n", err)
+	}
+	if err := createKafkaTestTopics(tmpCfg.Kafka); err != nil {
+		t.Fatalf("failed to create kafka test topics, err: %s\n", err)
 	}
 	ln, err := app.NewListener()
 	if err != nil {
@@ -158,7 +165,7 @@ func addTestData(t *testing.T, db *gorm.DB, acts ...action) {
 				UserID:         act.userID,
 				Amount:         int64(act.amt),
 				IsDebit:        act.actType == withdraw,
-				At:             now,
+				CreateAt:       now,
 			})
 		case freeze, transfer:
 			if act.targetID <= 0 {
@@ -170,10 +177,10 @@ func addTestData(t *testing.T, db *gorm.DB, acts ...action) {
 				TargetID:       act.targetID,
 				Amount:         int64(act.amt),
 				Status:         domain.FrozenStatusFrozen,
-				At:             now,
+				CreateAt:       now,
 			}
 			if act.actType == transfer {
-				trans = append(trans, domain.FrozenBalancesToTransactions(now, fb)...)
+				trans = append(trans, frozenBalancesToTransactions(now, fb)...)
 				fb.Status = domain.FrozenStatusConfirmed // after creating transactions, mark the frozen balance record as `confirmed`
 			}
 			fbs = append(fbs, fb)
@@ -226,6 +233,10 @@ func makeTransactionReq(endpoint string, req domain.TransactionReq) (int, error)
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
+		if res.StatusCode != http.StatusForbidden {
+			b, _ := io.ReadAll(res.Body)
+			fmt.Printf("make transaction err non 403, reqbody = %s, status: %d\n", b, res.StatusCode)
+		}
 		return res.StatusCode, errNon200Status
 	}
 	b, err := io.ReadAll(res.Body)
@@ -240,4 +251,71 @@ func makeTransactionReq(endpoint string, req domain.TransactionReq) (int, error)
 		return res.StatusCode, fmt.Errorf("unexpected response: %+v", mRes)
 	}
 	return res.StatusCode, nil
+}
+
+// each fronzen balance map to 2 transaction records => one debit, one credit
+func frozenBalancesToTransactions(at time.Time, fbs ...domain.FrozenBalance) []domain.Transaction {
+	ret := make([]domain.Transaction, 0, 2*len(fbs))
+	for _, fb := range fbs {
+		if fb.Status == domain.FrozenStatusConfirmed {
+			continue
+		}
+		transDebit := domain.Transaction{
+			IdempotencyKey: fb.IdempotencyKey,
+			UserID:         fb.UserID,
+			OtherID:        &fb.TargetID,
+			Amount:         fb.Amount,
+			IsDebit:        true,
+			CreateAt:       at,
+		}
+		transCredit := domain.Transaction{
+			IdempotencyKey: fb.IdempotencyKey,
+			UserID:         fb.TargetID,
+			OtherID:        nil,
+			Amount:         fb.Amount,
+			IsDebit:        false,
+			CreateAt:       at,
+		}
+		ret = append(ret, transDebit, transCredit)
+	}
+	return ret
+}
+
+func createKafkaTestTopics(cfg cfgs.KafkaCfg) error {
+	conn, err := kafka.Dial("tcp", cfg.KafkaAddr)
+	if err != nil {
+		return fmt.Errorf("failed to conn kafka, %w", err)
+	}
+	defer conn.Close()
+	topicCfgs := make([]kafka.TopicConfig, 0, len(cfg.Topics))
+	for _, topic := range cfg.Topics {
+		topicCfg := kafka.TopicConfig{
+			Topic:             topic,
+			NumPartitions:     1,
+			ReplicationFactor: 1,
+		}
+		topicCfgs = append(topicCfgs, topicCfg)
+	}
+	if err := conn.CreateTopics(topicCfgs...); err != nil {
+		return fmt.Errorf("failed to create test topics, err: %w", err)
+	}
+	w := kafka.NewWriter(kafka.WriterConfig{
+		Brokers:  []string{"localhost:9092"},
+		Topic:    "testcancel",
+		Balancer: &kafka.LeastBytes{},
+	})
+
+	err = w.WriteMessages(context.Background(),
+		kafka.Message{
+			Key:   []byte("key"),
+			Value: []byte("hello world"),
+		},
+	)
+	if err != nil {
+		slog.Error("test write error: ", "err", err)
+		return err
+	}
+	slog.Debug("test Message sent")
+	w.Close()
+	return nil
 }

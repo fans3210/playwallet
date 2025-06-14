@@ -2,11 +2,11 @@
 env: test
 loglv: -4 # debug for slog
 kafka:
-  addr: localhost:9092
+  addr: localhost:9093
   topics:
-    - try: e2e_try
-    - confirm: e2e_confirm
-    - cancel: e2e_cancel
+    - senderconfirm: testsendconfirm
+    - receiverconfirm: testrecvconfirm
+    - cancel: testcancel
 pg:
   addr: localhost
   pwd: password

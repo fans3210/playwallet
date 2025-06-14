@@ -20,7 +20,7 @@ func TestCheckBalanceValidation(t *testing.T) {
 		t.Fatalf("incorrect error type, expect: %s, actual: %s\n", errNon200Status, err)
 	}
 	if status != http.StatusNotFound {
-		t.Fatalf("unexpected reponse status: %d, expect 404 not found\n", status)
+		t.Fatalf("unexpected response status: %d, expect 404 not found\n", status)
 	}
 }
 
@@ -111,7 +111,7 @@ func TestMakeTransactionValidation(t *testing.T) {
 				t.Fatalf("incorrect error type, expect: %s, actual: %s\n", errNon200Status, err)
 			}
 			if status != c.expectErrCode {
-				t.Fatalf("unexpected reponse status: %d, expect %d\n", status, c.expectErrCode)
+				t.Fatalf("unexpected response status: %d, expect %d\n", status, c.expectErrCode)
 			}
 		})
 	}

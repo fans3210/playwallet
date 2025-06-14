@@ -3,8 +3,8 @@ loglv: -4 # debug for slog
 kafka:
   addr: walletkafka:9092
   topics:
-    - try: try
-    - confirm: confirm
+    - senderconfirm: sendconfirm
+    - receiverconfirm: recvconfirm
     - cancel: cancel
 pg:
   addr: walletpg

@@ -14,14 +14,19 @@ import (
 )
 
 type App struct {
-	cfg cfgs.Config
-	svr *echo.Echo
-	uc  *biz.WalletUC
+	cfg    cfgs.Config
+	svr    *echo.Echo
+	uc     *biz.WalletUC
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 func NewApp(cfg cfgs.Config) (*App, error) {
+	ctx, cancel := context.WithCancel(context.Background())
 	s := &App{
-		cfg: cfg,
+		cfg:    cfg,
+		ctx:    ctx,
+		cancel: cancel,
 	}
 	// db
 	repo, err := data.NewWalletRepo(cfg.PG)
@@ -30,7 +35,7 @@ func NewApp(cfg cfgs.Config) (*App, error) {
 	}
 	slog.Info("connect to postgres successfully with db", "db", cfg.PG.DB)
 	// biz
-	uc, err := biz.NewWalletUC(cfg, repo)
+	uc, err := biz.NewWalletUC(ctx, cfg, repo)
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +75,7 @@ func (s *App) StartWithListener(ln net.Listener) error {
 }
 
 func (s *App) ShunDown() error {
+	s.cancel()
 	return s.svr.Shutdown(context.Background())
 }
 

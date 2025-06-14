@@ -6,6 +6,9 @@ import (
 	"time"
 
 	"playwallet/pkg/errs"
+
+	"github.com/segmentio/kafka-go"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type TransactionType string
@@ -20,6 +23,9 @@ func (t TransactionType) IsValid() bool {
 	return t == Deposit || t == Withdraw || t == Transfer
 }
 
+// can be used to send transfer req and store ledger records
+// for sender who send this req, targetid => receiverid
+// for receiver who received this req, targetid = otherid = senderid
 type TransactionReq struct {
 	IdempotencyKey string          `json:"idempotency_key"`
 	UserID         int64           `json:"userid"`
@@ -55,40 +61,24 @@ func (t TransactionReq) Validate() error {
 	return nil
 }
 
+func (t TransactionReq) ToKafkaMsg() (*kafka.Message, error) {
+	b, err := msgpack.Marshal(t)
+	if err != nil {
+		return nil, err
+	}
+	return &kafka.Message{
+		Key:   []byte(t.IdempotencyKey),
+		Value: b,
+	}, nil
+}
+
 // primaryKey = ID(IdempotencyKey) + UserID, because each transfer would create two transactions, both have same IdempotencyKey but different userid
+// TODO: rename to ledger record
 type Transaction struct {
 	IdempotencyKey string    `gorm:"column:idempotencykey;primaryKey;check:idempotencykey<>''"` // WARN: transction id is not unique, transctionid+userid is unique, refers to IdempotencyKey of FrozenBalance for `transfer` case,
 	UserID         int64     `gorm:"column:userid;primaryKey;check:userid>0;index"`
-	TargetID       *int64    `gorm:"column:targetid;check:targetid is null or targetid > 0"` // if not speicying targetid, the transaction would be credit or debit , otherwise, is a transfer
+	OtherID        *int64    `gorm:"column:otherid;check:otherid is null or otherid > 0"` // if not speicying otherid, the transaction would be credit or debit , otherwise, is a transfer
 	Amount         int64     `gorm:"column:amt;not null;check:amt>0"`
 	IsDebit        bool      `gorm:"column:isdebit;not null"`
-	At             time.Time `gorm:"column:at;not null"`
-}
-
-// each fronzen balance map to 2 transaction records => one debit, one credit
-func FrozenBalancesToTransactions(at time.Time, fbs ...FrozenBalance) []Transaction {
-	ret := make([]Transaction, 0, 2*len(fbs))
-	for _, fb := range fbs {
-		if fb.Status == FrozenStatusConfirmed {
-			continue
-		}
-		transDebit := Transaction{
-			IdempotencyKey: fb.IdempotencyKey,
-			UserID:         fb.UserID,
-			TargetID:       &fb.TargetID,
-			Amount:         fb.Amount,
-			IsDebit:        true,
-			At:             at,
-		}
-		transCredit := Transaction{
-			IdempotencyKey: fb.IdempotencyKey,
-			UserID:         fb.TargetID,
-			TargetID:       &fb.UserID,
-			Amount:         fb.Amount,
-			IsDebit:        false,
-			At:             at,
-		}
-		ret = append(ret, transDebit, transCredit)
-	}
-	return ret
+	CreateAt       time.Time `gorm:"column:at;not null"`
 }

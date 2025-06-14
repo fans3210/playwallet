@@ -23,7 +23,7 @@ func (s *App) makeTransaction(c echo.Context) error {
 
 	resMsg := "succeed"
 	if req.Type == domain.Transfer {
-		resMsg = "request sent"
+		resMsg = "request sent, check your balance later"
 	}
 	return c.JSON(http.StatusOK, map[string]any{
 		"message": resMsg,

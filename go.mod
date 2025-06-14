@@ -6,6 +6,7 @@ require (
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/segmentio/kafka-go v0.4.48
 	github.com/spf13/viper v1.20.1
+	github.com/vmihailenco/msgpack/v5 v5.4.1
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.30.0
 )
@@ -33,6 +34,7 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
+	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/crypto v0.38.0 // indirect
