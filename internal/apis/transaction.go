@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"playwallet/internal/domain"
+	"playwallet/pkg/consts"
 	"playwallet/pkg/errs"
 
 	"github.com/labstack/echo/v4"
@@ -21,9 +22,9 @@ func (s *App) makeTransaction(c echo.Context) error {
 		return err
 	}
 
-	resMsg := "succeed"
+	resMsg := consts.DepositSuccessMsg
 	if req.Type == domain.Transfer {
-		resMsg = "request sent, check your balance later"
+		resMsg = consts.TransferReqSent
 	}
 	return c.JSON(http.StatusOK, map[string]any{
 		"message": resMsg,

@@ -2,6 +2,7 @@ env: prod
 loglv: -4 # debug for slog
 kafka:
   addr: walletkafka:9092
+  consumer_group: walletsvc
   topics:
     - senderconfirm: sendconfirm
     - receiverconfirm: recvconfirm

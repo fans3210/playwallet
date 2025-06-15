@@ -34,8 +34,9 @@ var (
 )
 
 type KafkaCfg struct {
-	KafkaAddr string `mapstructure:"addr"`
-	Topics    map[TopicKey]string
+	KafkaAddr     string `mapstructure:"addr"`
+	Topics        map[TopicKey]string
+	ConsumerGroup string `mapstructure:"consumer_group"`
 }
 
 type HttpCfg struct {

@@ -45,7 +45,7 @@ type KafkaReceiver struct {
 }
 
 func NewKafkaReceiver(addr string, topic string, groupID string) (*KafkaReceiver, error) {
-	if topic == "" || addr == "" || groupID == "" {
+	if topic == "" || addr == "" {
 		return nil, fmt.Errorf("invalid param for addr/topic/groupid, must not be empty")
 	}
 	rCfg := kafka.ReaderConfig{
@@ -80,6 +80,13 @@ func (r *KafkaReceiver) StartReceive(ctx context.Context, handler KafkaHandler) 
 					slog.Error("kafka reader read msg err", "err", err, "topic", r.topic)
 				}
 				if err := handler(msg); err != nil {
+					if errors.Is(err, io.EOF) { // if EOF in handler, likely msg is malformed or implemente, not worth retrying
+						slog.Error("malformed msg, commiting to avoid retry for topic", "topic", msg.Topic)
+						if err := r.reader.CommitMessages(ctx, msg); err != nil {
+							slog.Error("failed to commit msg", "err", err, "topic", r.topic)
+						}
+						return
+					}
 					slog.Error("reader failed to process kafka msg", "err", err, "topic", r.topic) // TODO: in the future if exceed max retry, move to dead letter queue
 					continue
 				}

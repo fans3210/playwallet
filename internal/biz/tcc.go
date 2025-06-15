@@ -1,10 +1,13 @@
 package biz
 
 import (
+	"errors"
 	"fmt"
+	"log/slog"
 
 	"playwallet/internal/cfgs"
 	"playwallet/internal/domain"
+	"playwallet/pkg/errs"
 )
 
 // 1. try: create frozen balance record, pub kafka msg to `sender_confirm` topic
@@ -13,18 +16,36 @@ import (
 // 3. cancel: once received kafka msg, if not have enough balance, mark the frozen_balance record `cancelled`
 
 func (uc *WalletUC) tccTry(req domain.TransactionReq) error {
+	shouldContinue := true
+
+	defer func() {
+		if !shouldContinue {
+			return
+		}
+		sendConfirm, ok := uc.senders[cfgs.TpcKeySenderConfirm]
+		if !ok {
+			slog.Error("no sender for topic for confirm")
+			return
+		}
+		kMsg, err := req.ToKafkaMsg()
+		if err != nil {
+			slog.Error("fail to convert TransactionReq to kafka msg", "req", req, "err", err)
+			return
+		}
+		if err := sendConfirm.SendMsg(*kMsg); err != nil {
+			slog.Error("fail to send confirm kafka msg", "err", err)
+		}
+	}()
+
 	if err := uc.repo.CreateFrozenBalance(req); err != nil {
+		if !errors.Is(err, errs.ErrDuplicate) {
+			shouldContinue = false
+			return err
+		}
+		slog.Error("failed to create frozen balance for transfer due to duplicate, continue the `try` step \n", "err", err)
 		return err
 	}
-	sendConfirm, ok := uc.senders[cfgs.TpcKeySenderConfirm]
-	if !ok {
-		return fmt.Errorf("no sender for topic for confirm")
-	}
-	kMsg, err := req.ToKafkaMsg()
-	if err != nil {
-		return err
-	}
-	return sendConfirm.SendMsg(*kMsg)
+	return nil
 }
 
 func (uc *WalletUC) tccCancel(req domain.TransactionReq) error {

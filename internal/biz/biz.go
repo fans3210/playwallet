@@ -28,7 +28,7 @@ func NewWalletUC(ctx context.Context, cfg cfgs.Config, repo *data.WalletRepo) (*
 		}
 		uc.senders[k] = sender
 
-		krecv, err := mq.NewKafkaReceiver(cfg.Kafka.KafkaAddr, topic, "walletsvc")
+		krecv, err := mq.NewKafkaReceiver(cfg.Kafka.KafkaAddr, topic, cfg.Kafka.ConsumerGroup)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create kafka receiver for topic key: %s, %w", k, err)
 		}

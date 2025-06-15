@@ -3,6 +3,8 @@ env: test
 loglv: -4 # debug for slog
 kafka:
   addr: localhost:9093
+  # for test, leave empty and use stateless consumer for speed testing
+  consumer_group: 
   topics:
     - senderconfirm: testsendconfirm
     - receiverconfirm: testrecvconfirm

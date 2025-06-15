@@ -2,7 +2,6 @@ package tests
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +16,7 @@ import (
 	"playwallet/internal/apis"
 	"playwallet/internal/cfgs"
 	"playwallet/internal/domain"
+	"playwallet/pkg/consts"
 
 	"github.com/segmentio/kafka-go"
 	"github.com/spf13/viper"
@@ -80,7 +80,8 @@ func provisionTestApp(t *testing.T) (string, *gorm.DB, func(t *testing.T)) {
 	if err != nil {
 		t.Fatalf("failed to create app: %s\n", err)
 	}
-	if err := createKafkaTestTopics(tmpCfg.Kafka); err != nil {
+	kConn, err := createKafkaTestTopics(tmpCfg.Kafka)
+	if err != nil {
 		t.Fatalf("failed to create kafka test topics, err: %s\n", err)
 	}
 	ln, err := app.NewListener()
@@ -103,6 +104,17 @@ func provisionTestApp(t *testing.T) (string, *gorm.DB, func(t *testing.T)) {
 	}
 
 	cleanup := func(t *testing.T) {
+		defer kConn.Close()
+		topics := make([]string, 0, len(tmpCfg.Kafka.Topics))
+		for _, topic := range tmpCfg.Kafka.Topics {
+			topics = append(topics, topic)
+		}
+		// attepmt to delete topic first to make sure no msg exist to make a clean test env
+		if err := kConn.DeleteTopics(topics...); err != nil {
+			slog.Warn("failed to delete test topics, err:", "err", err)
+		} else {
+			slog.Warn("kafka test topics deleted successfully")
+		}
 		if err := app.ShunDown(); err != nil {
 			t.Errorf("failed to shut down server: %s\n", err)
 			return
@@ -247,7 +259,7 @@ func makeTransactionReq(endpoint string, req domain.TransactionReq) (int, error)
 	if err := json.Unmarshal(b, &mRes); err != nil {
 		return res.StatusCode, err
 	}
-	if mRes["message"] != "succeed" {
+	if mRes["message"] != consts.DepositSuccessMsg && mRes["message"] != consts.TransferReqSent {
 		return res.StatusCode, fmt.Errorf("unexpected response: %+v", mRes)
 	}
 	return res.StatusCode, nil
@@ -281,12 +293,11 @@ func frozenBalancesToTransactions(at time.Time, fbs ...domain.FrozenBalance) []d
 	return ret
 }
 
-func createKafkaTestTopics(cfg cfgs.KafkaCfg) error {
+func createKafkaTestTopics(cfg cfgs.KafkaCfg) (*kafka.Conn, error) {
 	conn, err := kafka.Dial("tcp", cfg.KafkaAddr)
 	if err != nil {
-		return fmt.Errorf("failed to conn kafka, %w", err)
+		return nil, fmt.Errorf("failed to conn kafka, %w", err)
 	}
-	defer conn.Close()
 	topicCfgs := make([]kafka.TopicConfig, 0, len(cfg.Topics))
 	for _, topic := range cfg.Topics {
 		topicCfg := kafka.TopicConfig{
@@ -297,25 +308,9 @@ func createKafkaTestTopics(cfg cfgs.KafkaCfg) error {
 		topicCfgs = append(topicCfgs, topicCfg)
 	}
 	if err := conn.CreateTopics(topicCfgs...); err != nil {
-		return fmt.Errorf("failed to create test topics, err: %w", err)
+		defer conn.Close()
+		return conn, fmt.Errorf("failed to create test topics, err: %w", err)
 	}
-	w := kafka.NewWriter(kafka.WriterConfig{
-		Brokers:  []string{"localhost:9092"},
-		Topic:    "testcancel",
-		Balancer: &kafka.LeastBytes{},
-	})
 
-	err = w.WriteMessages(context.Background(),
-		kafka.Message{
-			Key:   []byte("key"),
-			Value: []byte("hello world"),
-		},
-	)
-	if err != nil {
-		slog.Error("test write error: ", "err", err)
-		return err
-	}
-	slog.Debug("test Message sent")
-	w.Close()
-	return nil
+	return conn, nil
 }
