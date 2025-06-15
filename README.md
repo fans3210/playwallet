@@ -83,7 +83,8 @@ Key decisions in our testing approach:
     
 - **User-Level Isolation Assumption**:
     
-    In the application design, users are logically isolated via `user_id`. Although some systems might use separate databases or schemas for different users in a multi-tenant setup, we chose to use a single shared database for simplicity and practicality, given project constraints.
+
+    The original intent was to isolate users at the database level. However, due to time and resource constraints during development, this level of isolation was deferred. The current approach remains suitable for simulating real-world scenarios while significantly reducing operational overhead during development and testing.
     
 
 ### Folder structure
