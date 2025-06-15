@@ -82,3 +82,9 @@ type Transaction struct {
 	IsDebit        bool      `gorm:"column:isdebit;not null"`
 	CreateAt       time.Time `gorm:"column:at;not null"`
 }
+
+type GetTransactionsRes struct {
+	PageOpt
+	Total   int           `json:"total"`
+	Records []Transaction `json:"records"`
+}

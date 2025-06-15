@@ -71,7 +71,3 @@ func TestDeposit(t *testing.T) {
 		t.Fatalf("incorrect available balance amt after deposit, expect: %d, actual: %d\n", firstDepositAmt+secondDepositAmt, balanceInfo.AvailableBalance)
 	}
 }
-
-// TODO: for transfer, test idempotency key in each step, the try, confirm, cancel step,
-// TODO: for transfer, test concurrent transfer to simulate mallisious user who expect to get more amt from source user
-// TODO: for transfer, test concurrent transfer+deposit+debit, check the correctness of the result balance

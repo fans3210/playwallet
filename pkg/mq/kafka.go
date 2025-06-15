@@ -48,6 +48,12 @@ func NewKafkaReceiver(addr string, topic string, groupID string) (*KafkaReceiver
 	if topic == "" || addr == "" {
 		return nil, fmt.Errorf("invalid param for addr/topic/groupid, must not be empty")
 	}
+	var startOffset int64
+	if groupID == "" {
+		startOffset = kafka.LastOffset
+	} else {
+		startOffset = kafka.FirstOffset
+	}
 	rCfg := kafka.ReaderConfig{
 		Brokers:        []string{addr},
 		GroupID:        groupID,
@@ -55,7 +61,7 @@ func NewKafkaReceiver(addr string, topic string, groupID string) (*KafkaReceiver
 		MinBytes:       1,
 		MaxBytes:       10e6,
 		MaxWait:        500 * time.Millisecond,
-		StartOffset:    kafka.FirstOffset,
+		StartOffset:    startOffset,
 		CommitInterval: time.Second,
 	}
 	r := kafka.NewReader(rCfg)
@@ -81,17 +87,21 @@ func (r *KafkaReceiver) StartReceive(ctx context.Context, handler KafkaHandler) 
 				}
 				if err := handler(msg); err != nil {
 					if errors.Is(err, io.EOF) { // if EOF in handler, likely msg is malformed or implemente, not worth retrying
-						slog.Error("malformed msg, commiting to avoid retry for topic", "topic", msg.Topic)
-						if err := r.reader.CommitMessages(ctx, msg); err != nil {
-							slog.Error("failed to commit msg", "err", err, "topic", r.topic)
+						if r.reader.Config().GroupID != "" {
+							slog.Error("malformed msg, commiting to avoid retry for topic", "topic", msg.Topic)
+							if err := r.reader.CommitMessages(ctx, msg); err != nil {
+								slog.Error("failed to commit msg", "err", err, "topic", r.topic)
+							}
 						}
 						return
 					}
 					slog.Error("reader failed to process kafka msg", "err", err, "topic", r.topic) // TODO: in the future if exceed max retry, move to dead letter queue
 					continue
 				}
-				if err := r.reader.CommitMessages(ctx, msg); err != nil {
-					slog.Error("failed to commit msg", "err", err, "topic", r.topic)
+				if r.reader.Config().GroupID != "" {
+					if err := r.reader.CommitMessages(ctx, msg); err != nil {
+						slog.Error("failed to commit msg", "err", err, "topic", r.topic)
+					}
 				}
 			}
 		}

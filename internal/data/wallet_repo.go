@@ -2,6 +2,7 @@ package data
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -197,14 +198,41 @@ func (r *WalletRepo) CancelFrozenBalance(req domain.TransactionReq) error {
 		IdempotencyKey: req.IdempotencyKey,
 	}
 	now := time.Now()
-	if err := r.db.Model(&fb).
+	tx := r.db.Model(&fb).
 		Where("status", domain.FrozenStatusFrozen).
 		Updates(map[string]any{
 			"status":    domain.FrozenStatusCancelled,
 			"update_at": now,
-		}).Error; err != nil {
+		})
+	if err := tx.Error; err != nil {
 		slog.Error("failed to cancel", "req", req, "err", err)
 		return err
 	}
+	if tx.RowsAffected < 1 {
+		return fmt.Errorf("failed to cancel, no change happen, req: %+v", req)
+	}
+
 	return nil
+}
+
+func (r *WalletRepo) Transactions(userID int64, pageOpt domain.PageOpt) (int64, []domain.Transaction, error) {
+	var total int64
+	// Count total records matching the filter
+	if err := r.db.
+		Model(&domain.Transaction{}).
+		Where("userid = ?", userID).
+		Count(&total).Error; err != nil {
+		return 0, nil, err
+	}
+	page, perPage := pageOpt.Page, pageOpt.PerPage
+	ret := make([]domain.Transaction, 0, perPage)
+	if err := r.db.
+		Order("at desc").
+		Where("userid = ?", userID).
+		Limit(perPage).
+		Offset((page - 1) * perPage).
+		Find(&ret).Error; err != nil {
+		return 0, nil, err
+	}
+	return total, ret, nil
 }

@@ -28,7 +28,7 @@ var errNon200Status = fmt.Errorf("unsuccessful status code")
 
 func provisionTestApp(t *testing.T) (string, *gorm.DB, func(t *testing.T)) {
 	// setup global logger
-	// logger := slog.New(slog.NewTextHandler(io.Discard, nil)) // FIXME:
+	// logger := slog.New(slog.NewTextHandler(io.Discard, nil)) // NOTE: optional, disable log for test,
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	slog.SetDefault(logger)
 	// read config
@@ -234,6 +234,38 @@ func makeCheckBalanceReq(endpoint string, uid int64) (int, *domain.BalanceInfo, 
 	return res.StatusCode, &bInfo, nil
 }
 
+func makeGetTransactionsReq(endpoint string, uid int64, pageOpt *domain.PageOpt) (int, *domain.GetTransactionsRes, error) {
+	var body io.Reader
+	if pageOpt != nil {
+		bd, err := json.Marshal(pageOpt)
+		if err != nil {
+			return 0, nil, err
+		}
+		body = bytes.NewBuffer(bd)
+	}
+	res, err := http.Post(fmt.Sprintf("%s/transactions/%d", endpoint, uid), "application/json", body)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		if res.StatusCode != http.StatusForbidden {
+			b, _ := io.ReadAll(res.Body)
+			fmt.Printf("get transactions err non 403, reqbody = %s, status: %d\n", b, res.StatusCode)
+		}
+		return res.StatusCode, nil, errNon200Status
+	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		return res.StatusCode, nil, err
+	}
+	mRes := domain.GetTransactionsRes{}
+	if err := json.Unmarshal(b, &mRes); err != nil {
+		return res.StatusCode, nil, err
+	}
+	return res.StatusCode, &mRes, nil
+}
+
 func makeTransactionReq(endpoint string, req domain.TransactionReq) (int, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
@@ -306,6 +338,15 @@ func createKafkaTestTopics(cfg cfgs.KafkaCfg) (*kafka.Conn, error) {
 			ReplicationFactor: 1,
 		}
 		topicCfgs = append(topicCfgs, topicCfg)
+	}
+	topics := make([]string, 0, len(cfg.Topics))
+	for _, topic := range cfg.Topics {
+		topics = append(topics, topic)
+	}
+	if err := conn.DeleteTopics(topics...); err != nil {
+		slog.Warn("failed to delete test topics, err:", "err", err)
+	} else {
+		slog.Warn("kafka test topics deleted successfully")
 	}
 	if err := conn.CreateTopics(topicCfgs...); err != nil {
 		defer conn.Close()

@@ -84,4 +84,5 @@ func (s *App) registerRoutes() {
 
 	s.svr.GET("/balance/:userid", s.getBalacne)
 	s.svr.POST("/transaction", s.makeTransaction)
+	s.svr.POST("/transactions/:userid", s.transactions)
 }

@@ -1,7 +1,9 @@
 package apis
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
 
 	"playwallet/internal/domain"
 	"playwallet/pkg/consts"
@@ -29,4 +31,32 @@ func (s *App) makeTransaction(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]any{
 		"message": resMsg,
 	})
+}
+
+func (s *App) transactions(c echo.Context) error {
+	pageOpt := domain.PageOpt{
+		Page:    1,
+		PerPage: 10,
+	}
+	if err := c.Bind(&pageOpt); err != nil {
+		return errs.ErrInvalidParam
+	}
+	if !pageOpt.IsValid() {
+		return errs.ErrInvalidParam
+	}
+	uidstr := c.Param("userid")
+	userID, err := strconv.ParseInt(uidstr, 10, 64)
+	if err != nil {
+		return errs.ErrInvalidPlayer
+	}
+	total, trans, err := s.uc.Transactions(userID, pageOpt)
+	if err != nil {
+		return fmt.Errorf("failed to get transactions for user: %d, %w", userID, err)
+	}
+	res := domain.GetTransactionsRes{
+		PageOpt: pageOpt,
+		Total:   int(total),
+		Records: trans,
+	}
+	return c.JSON(http.StatusOK, res)
 }

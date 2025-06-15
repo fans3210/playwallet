@@ -24,8 +24,37 @@ func TestCheckBalanceValidation(t *testing.T) {
 	}
 }
 
-// TODO: add withdraw test, add transfer test for more validation cases
+func TestGetTransactionsValidation(t *testing.T) {
+	endpoint, _, teardown := provisionTestApp(t)
+	defer teardown(t)
+	nonExistUserID := 10101010
+	status, _, err := makeGetTransactionsReq(endpoint, int64(nonExistUserID), nil)
+	if err == nil {
+		t.Fatalf("expect error for non exist userid: %d\n", nonExistUserID)
+	}
+	if !errors.Is(err, errNon200Status) {
+		t.Fatalf("incorrect error type, expect: %s, actual: %s\n", errNon200Status, err)
+	}
+	if status != http.StatusNotFound {
+		t.Fatalf("unexpected response status: %d, expect 404 not found\n", status)
+	}
+
+	invalidPageOpt := &domain.PageOpt{Page: -1, PerPage: -1}
+	status, _, err = makeGetTransactionsReq(endpoint, 1, invalidPageOpt)
+	if err == nil {
+		t.Fatalf("expect error for invalid page opt: %+v\n", invalidPageOpt)
+	}
+	if !errors.Is(err, errNon200Status) {
+		t.Fatalf("incorrect error type, expect: %s, actual: %s\n", errNon200Status, err)
+	}
+	if status != http.StatusBadRequest {
+		t.Fatalf("unexpected response status: %d, expect bad request for invalid page opt\n", status)
+	}
+}
+
 func TestMakeTransactionValidation(t *testing.T) {
+	uid1, uid2, uidNonExist := int64(1), int64(2), int64(10010101010)
+
 	cases := []struct {
 		desc          string
 		req           domain.TransactionReq
@@ -35,7 +64,7 @@ func TestMakeTransactionValidation(t *testing.T) {
 			desc: "make transaction missing transaction type",
 			req: domain.TransactionReq{
 				IdempotencyKey: "testkey",
-				UserID:         1,
+				UserID:         uid1,
 				Amt:            10,
 			},
 			expectErrCode: http.StatusBadRequest,
@@ -44,7 +73,7 @@ func TestMakeTransactionValidation(t *testing.T) {
 			desc: "deposit non exist user",
 			req: domain.TransactionReq{
 				IdempotencyKey: "testkey",
-				UserID:         100100100,
+				UserID:         uidNonExist,
 				Amt:            10,
 				Type:           domain.Deposit,
 			},
@@ -54,9 +83,31 @@ func TestMakeTransactionValidation(t *testing.T) {
 			desc: "withdraw non exist user",
 			req: domain.TransactionReq{
 				IdempotencyKey: "testkey",
-				UserID:         100100100,
+				UserID:         uidNonExist,
 				Amt:            10,
 				Type:           domain.Withdraw,
+			},
+			expectErrCode: http.StatusNotFound,
+		},
+		{
+			desc: "transfer non exist user 1",
+			req: domain.TransactionReq{
+				IdempotencyKey: "testkey",
+				UserID:         uidNonExist,
+				TargetID:       &uid2,
+				Amt:            10,
+				Type:           domain.Transfer,
+			},
+			expectErrCode: http.StatusNotFound,
+		},
+		{
+			desc: "transfer non exist user 2",
+			req: domain.TransactionReq{
+				IdempotencyKey: "testkey",
+				UserID:         uid1,
+				TargetID:       &uidNonExist,
+				Amt:            10,
+				Type:           domain.Transfer,
 			},
 			expectErrCode: http.StatusNotFound,
 		},
@@ -64,7 +115,7 @@ func TestMakeTransactionValidation(t *testing.T) {
 			desc: "deposit negative amt",
 			req: domain.TransactionReq{
 				IdempotencyKey: "testkey",
-				UserID:         1,
+				UserID:         uid1,
 				Amt:            -10,
 				Type:           domain.Deposit,
 			},
@@ -74,16 +125,26 @@ func TestMakeTransactionValidation(t *testing.T) {
 			desc: "withdraw negative amt",
 			req: domain.TransactionReq{
 				IdempotencyKey: "testkey",
-				UserID:         1,
+				UserID:         uid1,
 				Amt:            -10,
 				Type:           domain.Withdraw,
 			},
 			expectErrCode: http.StatusBadRequest,
 		},
 		{
+			desc: "transfer negative amt",
+			req: domain.TransactionReq{
+				IdempotencyKey: "testkey",
+				UserID:         uid1,
+				Amt:            -10,
+				Type:           domain.Transfer,
+			},
+			expectErrCode: http.StatusBadRequest,
+		},
+		{
 			desc: "deposit empty idempotency key",
 			req: domain.TransactionReq{
-				UserID: 1,
+				UserID: uid1,
 				Amt:    10,
 				Type:   domain.Deposit,
 			},
@@ -92,9 +153,18 @@ func TestMakeTransactionValidation(t *testing.T) {
 		{
 			desc: "withdraw empty idempotency key",
 			req: domain.TransactionReq{
-				UserID: 1,
+				UserID: uid1,
 				Amt:    10,
 				Type:   domain.Withdraw,
+			},
+			expectErrCode: http.StatusBadRequest,
+		},
+		{
+			desc: "transfer empty idempotency key",
+			req: domain.TransactionReq{
+				UserID: uid1,
+				Amt:    10,
+				Type:   domain.Transfer,
 			},
 			expectErrCode: http.StatusBadRequest,
 		},

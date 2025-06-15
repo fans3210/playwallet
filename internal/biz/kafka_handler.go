@@ -18,12 +18,18 @@ func (uc *WalletUC) handleSenderConfirm(kmsg kafka.Message) (err error) {
 		return fmt.Errorf("failed to Unmarshal kafka msg: %w", err)
 	}
 	slog.Debug("sender confirm received kafka msg", "req", req)
-	if err := uc.repo.Withdraw(req); err != nil {
+	// WARN: disable retry, would impact performance due to kafka msg, simply cancel, as long as no over deduction
+	// withDrawErr := tools.Retry(3, func() error {
+	// 	return uc.repo.Withdraw(req)
+	// })
+	withDrawErr := uc.repo.Withdraw(req)
+	if err := withDrawErr; err != nil {
 		if errors.Is(err, errs.ErrDuplicate) { // same idempotency key
 			// continue receiver confirm for IdempotencyKey issue
 			return uc.tccConfirm(req)
 		}
 		if errors.Is(err, errs.ErrInsufficientBalance) {
+			slog.Warn("handle sender confirm msg ErrInsufficientBalance, prepare to cancel, req", "req", req, "insufficnentbalanceerr", err)
 			return uc.tccCancel(req)
 		}
 		return err
@@ -64,5 +70,10 @@ func (uc *WalletUC) handleCancel(kmsg kafka.Message) error {
 		return fmt.Errorf("failed to Unmarshal kafka msg: %w", err)
 	}
 	slog.Debug("cancel received kafka msg", "req", req)
-	return uc.repo.CancelFrozenBalance(req)
+	if err := uc.repo.CancelFrozenBalance(req); err != nil {
+		slog.Error("cancel failed", "req", req)
+		return err
+	}
+	slog.Error("cancel succeed", "req", req)
+	return nil
 }
