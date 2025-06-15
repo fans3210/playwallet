@@ -69,7 +69,7 @@ func TestTransferHappyPath(t *testing.T) {
 		t.Fatalf("fail to make transfer req 1: %s\n", err)
 	}
 
-	// send antoher trasnfer with same idemptency key, expect error, and should cancel and thus won't affect the result balance
+	// send antoher transfer with same idemptency key, expect error, and should cancel and thus won't affect the result balance
 	if _, err := makeTransactionReq(endpoint, domain.TransactionReq{
 		IdempotencyKey: idpK1,
 		UserID:         uid1,
@@ -138,7 +138,7 @@ func TestConcurrentTransfer(t *testing.T) {
 	expected1Opt := max(int64(startAmt)-int64(N)*transferAmt, int64(startAmt)%transferAmt+transferAmt)
 	expected2 := min(0+transferAmt*int64(N-1), int64(startAmt)-(int64(startAmt)%transferAmt+transferAmt))
 	expected2Opt := min(0+transferAmt*int64(N), int64(startAmt)-(int64(startAmt)%transferAmt+transferAmt))
-	// WARN: must make sure to have enough timeout to make all the kafka msgs consumed successfullly
+	// WARN: must make sure to have enough timeout to make all the kafka msgs consumed successfully
 	assertBalance(t, endpoint, uid1, uid2, expected1, expected2, 30, expected1Opt, expected2Opt)
 }
 

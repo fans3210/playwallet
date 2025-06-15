@@ -1,0 +1,607 @@
+{
+	"info": {
+		"_postman_id": "a698cf9f-15ae-415a-ac2a-3761eee99ff3",
+		"name": "w",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "29504073"
+	},
+	"item": [
+		{
+			"name": "check balance",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "localhost:1323/balance/1",
+					"host": [
+						"localhost"
+					],
+					"port": "1323",
+					"path": [
+						"balance",
+						"1"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "non exist user",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:1323/balance/4040",
+							"host": [
+								"localhost"
+							],
+							"port": "1323",
+							"path": [
+								"balance",
+								"4040"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": null
+				}
+			]
+		},
+		{
+			"name": "get transactions",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:1323/transactions/1",
+					"host": [
+						"localhost"
+					],
+					"port": "1323",
+					"path": [
+						"transactions",
+						"1"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "non exist user",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:1323/balance/4040",
+							"host": [
+								"localhost"
+							],
+							"port": "1323",
+							"path": [
+								"balance",
+								"4040"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": null
+				}
+			]
+		},
+		{
+			"name": "deposit",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"userid\": 1,\n    \"amt\": 10,\n    \"idempotency_key\": \"hi3\",\n    \"type\": \"deposit\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:1323/transaction",
+					"host": [
+						"localhost"
+					],
+					"port": "1323",
+					"path": [
+						"transaction"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "deposit amt < 0",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userid\": 1,\n    \"amt\": -10,\n    \"idempotency_key\": \"hi\",\n    \"type\": \"deposit\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:1323/transaction",
+							"host": [
+								"localhost"
+							],
+							"port": "1323",
+							"path": [
+								"transaction"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": null
+				},
+				{
+					"name": "deposit non exist user",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userid\": 1010101010,\n    \"amt\": 10,\n    \"idempotency_key\": \"hi\",\n    \"type\": \"deposit\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:1323/transaction",
+							"host": [
+								"localhost"
+							],
+							"port": "1323",
+							"path": [
+								"transaction"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": null
+				},
+				{
+					"name": "empty idempotency key",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userid\": 1,\n    \"amt\": 10,\n    \"type\": \"deposit\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:1323/transaction",
+							"host": [
+								"localhost"
+							],
+							"port": "1323",
+							"path": [
+								"transaction"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": null
+				},
+				{
+					"name": "missing transfer type",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userid\": 1,\n    \"amt\": 10,\n    \"idempotency_key\": \"hi\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:1323/transaction",
+							"host": [
+								"localhost"
+							],
+							"port": "1323",
+							"path": [
+								"transaction"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": null
+				}
+			]
+		},
+		{
+			"name": "withdraw",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"userid\": 1,\n    \"amt\": 1,\n    \"idempotency_key\": \"hi5f\",\n    \"type\": \"withdraw\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:1323/transaction",
+					"host": [
+						"localhost"
+					],
+					"port": "1323",
+					"path": [
+						"transaction"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "withdraw amt < 0",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userid\": 1,\n    \"amt\": -10,\n    \"idempotency_key\": \"hi\",\n    \"type\": \"withdraw\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:1323/transaction",
+							"host": [
+								"localhost"
+							],
+							"port": "1323",
+							"path": [
+								"transaction"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": null
+				},
+				{
+					"name": "withdraw amt exceed available balance",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userid\": 1,\n    \"amt\": 99999,\n    \"idempotency_key\": \"hi\",\n    \"type\": \"withdraw\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:1323/transaction",
+							"host": [
+								"localhost"
+							],
+							"port": "1323",
+							"path": [
+								"transaction"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": null
+				},
+				{
+					"name": "withdraw non exist user",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userid\": 1010101010,\n    \"amt\": 10,\n    \"idempotency_key\": \"hi\",\n    \"type\": \"withdraw\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:1323/transaction",
+							"host": [
+								"localhost"
+							],
+							"port": "1323",
+							"path": [
+								"transaction"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": null
+				},
+				{
+					"name": "empty idempotency key",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userid\": 1,\n    \"amt\": 10,\n    \"type\": \"withdraw\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:1323/transaction",
+							"host": [
+								"localhost"
+							],
+							"port": "1323",
+							"path": [
+								"transaction"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": null
+				},
+				{
+					"name": "missing transfer type",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userid\": 1,\n    \"amt\": 10,\n    \"idempotency_key\": \"hi\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:1323/transaction",
+							"host": [
+								"localhost"
+							],
+							"port": "1323",
+							"path": [
+								"transaction"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": null
+				}
+			]
+		},
+		{
+			"name": "transfer",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"userid\": 1,\n    \"targetid\": 2,\n    \"amt\": 1,\n    \"idempotency_key\": \"t6\",\n    \"type\": \"transfer\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:1323/transaction",
+					"host": [
+						"localhost"
+					],
+					"port": "1323",
+					"path": [
+						"transaction"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "withdraw amt < 0",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userid\": 1,\n    \"amt\": -10,\n    \"idempotency_key\": \"hi\",\n    \"type\": \"withdraw\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:1323/transaction",
+							"host": [
+								"localhost"
+							],
+							"port": "1323",
+							"path": [
+								"transaction"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": null
+				},
+				{
+					"name": "withdraw amt exceed available balance",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userid\": 1,\n    \"amt\": 99999,\n    \"idempotency_key\": \"hi\",\n    \"type\": \"withdraw\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:1323/transaction",
+							"host": [
+								"localhost"
+							],
+							"port": "1323",
+							"path": [
+								"transaction"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": null
+				},
+				{
+					"name": "withdraw non exist user",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userid\": 1010101010,\n    \"amt\": 10,\n    \"idempotency_key\": \"hi\",\n    \"type\": \"withdraw\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:1323/transaction",
+							"host": [
+								"localhost"
+							],
+							"port": "1323",
+							"path": [
+								"transaction"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": null
+				},
+				{
+					"name": "empty idempotency key",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userid\": 1,\n    \"amt\": 10,\n    \"type\": \"withdraw\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:1323/transaction",
+							"host": [
+								"localhost"
+							],
+							"port": "1323",
+							"path": [
+								"transaction"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": null
+				},
+				{
+					"name": "missing transfer type",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userid\": 1,\n    \"amt\": 10,\n    \"idempotency_key\": \"hi\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:1323/transaction",
+							"host": [
+								"localhost"
+							],
+							"port": "1323",
+							"path": [
+								"transaction"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": null
+				}
+			]
+		}
+	]
+}

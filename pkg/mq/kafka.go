@@ -88,7 +88,7 @@ func (r *KafkaReceiver) StartReceive(ctx context.Context, handler KafkaHandler) 
 				if err := handler(msg); err != nil {
 					if errors.Is(err, io.EOF) { // if EOF in handler, likely msg is malformed or implemente, not worth retrying
 						if r.reader.Config().GroupID != "" {
-							slog.Error("malformed msg, commiting to avoid retry for topic", "topic", msg.Topic)
+							slog.Error("malformed msg, committing to avoid retry for topic", "topic", msg.Topic)
 							if err := r.reader.CommitMessages(ctx, msg); err != nil {
 								slog.Error("failed to commit msg", "err", err, "topic", r.topic)
 							}

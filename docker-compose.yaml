@@ -73,6 +73,9 @@ services:
   playwallet:
     image: github.com/fans3210/playwallet
     container_name: playwallet
+    depends_on:
+      - kafka
+      - postgres
     build:
       dockerfile: Dockerfile
     ports:

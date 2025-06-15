@@ -6,7 +6,7 @@ insert into users (id, username) values
 (2, 'bob');
 
 delete from frozen_balances;
-insert into frozen_balances (idempotencykey, userid, otherid, amt, status, at) values
+insert into frozen_balances (idempotencykey, userid, targetid, amt, status, at) values
 ('1to2frozen', 1, 2, 10, 'frozen',  now()),
 ('1to2confirmed', 1, 2, 20, 'confirmed',  now()), -- 1 transfer to 2 20 units confirmed
 ('2to1fronzen', 2, 1, 15, 'frozen',  now()),

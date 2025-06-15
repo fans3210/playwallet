@@ -13,6 +13,6 @@ type BalanceBaseInfo struct {
 
 func (b BalanceBaseInfo) IsValid() bool {
 	return b.TotalBalance >= 0 && b.FrozenBalance >= 0
-	//  NOTE: b.TotalBalance >= b.FrozenBalance checking is not necesary for testint concurrent trasnfer case,
+	//  NOTE: b.TotalBalance >= b.FrozenBalance checking is not necessary for testint concurrent transfer case,
 	// since the frozen balance can be large, but eventually should be processed and cancelled
 }
