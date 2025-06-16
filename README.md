@@ -185,7 +185,7 @@ Each step (Try, Confirm, Cancel) checks for **duplicate key errors** and safely 
     
     Add rate limiting or throttling on endpoints like transfer or recharge to mitigate abuse or unintentional repeated calls.
 
-- **Mircoservice architecture for logic boundary and isocation, scalability considerations
+- **Mircoservice architecture for logic boundary and isocation, scalability considerations:**
     
     Due to time constraint, there is no microservice architectures, especially notification service for notifying the user about transfer status
     
